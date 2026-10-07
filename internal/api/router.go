@@ -7,7 +7,7 @@ import (
 )
 
 func NewRouter(svc *service.Service) http.Handler {
-	runtime := service.NewRuntime()
+	runtime := service.NewRuntime(svc)
 	book := checkpointBook()
 	r := chi.NewRouter()
 	r.Get("/healthz", health)
@@ -32,5 +32,8 @@ func NewRouter(svc *service.Service) http.Handler {
 	r.Get("/api/snapshot", restoreSnapshot(svc, book))
 	r.Get("/api/metrics", metricsStatus(svc, runtime))
 	r.Put("/api/recipes/{recipeID}", recipeEdit(svc))
+	r.Get("/api/recipes/{recipeID}/revisions", revisions(svc))
+	r.Post("/api/recipes/{recipeID}/revisions", freezeRevision(svc))
+	r.Get("/api/recipes/{recipeID}/impact", recipeImpact(svc))
 	return r
 }

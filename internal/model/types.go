@@ -18,14 +18,15 @@ const (
 type ID string
 
 type Run struct {
-	ID        ID        `json:"id"`
-	Batch     string    `json:"batch"`
-	RecipeID  ID        `json:"recipe_id"`
-	State     RunState  `json:"state"`
-	CreatedAt time.Time `json:"created_at"`
-	UpdatedAt time.Time `json:"updated_at"`
-	Layer     int       `json:"layer"`
-	Error     string    `json:"error,omitempty"`
+	ID             ID        `json:"id"`
+	Batch          string    `json:"batch"`
+	RecipeID       ID        `json:"recipe_id"`
+	RecipeRevision int       `json:"recipe_revision"`
+	State          RunState  `json:"state"`
+	CreatedAt      time.Time `json:"created_at"`
+	UpdatedAt      time.Time `json:"updated_at"`
+	Layer          int       `json:"layer"`
+	Error          string    `json:"error,omitempty"`
 }
 
 type Layer struct {

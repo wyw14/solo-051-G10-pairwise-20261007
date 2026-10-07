@@ -33,10 +33,16 @@ type Runtime struct {
 	StartedAt       time.Time
 }
 
-func NewRuntime() *Runtime {
+func NewRuntime(svc *Service) *Runtime {
 	driver := shutter.NewDriver()
 	feedback := shutter.NewFeedback()
-	return &Runtime{Monitor: optical.NewMonitor(), Window: optical.NewThicknessWindow(128), Broadcast: optical.NewBroadcaster(), Traces: journal.NewTraceStore(), Incidents: journal.NewIncidentStore(), Timeline: run.NewTimeline(), VacuumTelemetry: vacuum.NewTelemetry(128), RevisionStore: recipe.NewRevisionStore(), InterlockAudit: interlock.NewAudit(), Shutter: shutter.NewController(driver, feedback), StartedAt: time.Now().UTC()}
+	var revisions *recipe.RevisionStore
+	if svc != nil {
+		revisions = svc.Revisions
+	} else {
+		revisions = recipe.NewRevisionStore()
+	}
+	return &Runtime{Monitor: optical.NewMonitor(), Window: optical.NewThicknessWindow(128), Broadcast: optical.NewBroadcaster(), Traces: journal.NewTraceStore(), Incidents: journal.NewIncidentStore(), Timeline: run.NewTimeline(), VacuumTelemetry: vacuum.NewTelemetry(128), RevisionStore: revisions, InterlockAudit: interlock.NewAudit(), Shutter: shutter.NewController(driver, feedback), StartedAt: time.Now().UTC()}
 }
 
 func (r *Runtime) NextSequence() int64 {

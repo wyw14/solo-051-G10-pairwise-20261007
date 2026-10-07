@@ -49,15 +49,20 @@ func (s *Service) Audit(ctx context.Context, runtime *Runtime) AuditReport {
 		report.Passed = false
 		report.Checks["recipes"] = "no recipes"
 	} else {
-		frozen, err := runtime.RevisionStore.Freeze(recipes[0])
-		if err != nil && len(runtime.RevisionStore.List(recipes[0].ID)) == 0 {
+		plan, compileErr := recipe.Compile(recipes[0])
+		if compileErr != nil {
 			report.Passed = false
-			report.Checks["recipes"] = err.Error()
+			report.Checks["recipes"] = compileErr.Error()
 		} else {
-			plan, compileErr := recipe.Compile(recipes[0])
-			if compileErr != nil {
+			frozen, err := runtime.RevisionStore.Freeze(recipes[0])
+			if err != nil {
+				if existing := runtime.RevisionStore.List(recipes[0].ID); len(existing) > 0 {
+					frozen = existing[len(existing)-1]
+				}
+			}
+			if frozen.Number == 0 {
 				report.Passed = false
-				report.Checks["recipes"] = compileErr.Error()
+				report.Checks["recipes"] = err.Error()
 			} else {
 				report.Checks["recipes"] = fmt.Sprintf("revision=%d layers=%d", frozen.Number, len(plan.Layers))
 			}
