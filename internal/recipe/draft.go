@@ -28,6 +28,18 @@ func (b *DraftBook) Get(id model.ID) (*model.Recipe, bool) {
 	}
 	return cloneRecipe(value), true
 }
+
+// ListIDs returns the ids of recipes that currently hold mutable draft edits.
+// Impact analysis cites these as excluded inputs, never as published changes.
+func (b *DraftBook) ListIDs() []model.ID {
+	b.mu.RLock()
+	defer b.mu.RUnlock()
+	out := make([]model.ID, 0, len(b.drafts))
+	for id := range b.drafts {
+		out = append(out, id)
+	}
+	return out
+}
 func (b *DraftBook) UpdateLayer(id model.ID, layer model.Layer) bool {
 	b.mu.Lock()
 	defer b.mu.Unlock()

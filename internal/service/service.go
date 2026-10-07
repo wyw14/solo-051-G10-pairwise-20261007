@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/wyw14/cry-161/internal/chamber"
+	"github.com/wyw14/cry-161/internal/impact"
 	"github.com/wyw14/cry-161/internal/journal"
 	"github.com/wyw14/cry-161/internal/model"
 	"github.com/wyw14/cry-161/internal/recipe"
@@ -16,15 +17,18 @@ import (
 )
 
 type Service struct {
-	Runs     *run.Registry
-	Recipes  *recipe.Store
-	Drafts   *recipe.DraftBook
-	Carrier  *substrate.Carrier
-	Chamber  *chamber.Chamber
-	Vacuum   *vacuum.Controller
-	Source   *source.Controller
-	Rotation *rotation.Controller
-	Journal  *journal.Store
+	Runs          *run.Registry
+	Recipes       *recipe.Store
+	Drafts        *recipe.DraftBook
+	Revisions     *recipe.RevisionStore
+	RunBindings   *impact.Binder
+	ImpactReports *impact.ReportStore
+	Carrier       *substrate.Carrier
+	Chamber       *chamber.Chamber
+	Vacuum        *vacuum.Controller
+	Source        *source.Controller
+	Rotation      *rotation.Controller
+	Journal       *journal.Store
 }
 
 func New() *Service {
@@ -35,13 +39,36 @@ func New() *Service {
 	if dir == "" {
 		dir = "data"
 	}
-	return &Service{Runs: run.NewRegistry(), Recipes: recipes, Drafts: recipe.NewDraftBook(), Carrier: substrate.NewCarrier(), Chamber: chamber.New("coat-01"), Vacuum: vacuum.NewController(), Source: source.NewController(100), Rotation: rotation.NewController(), Journal: journal.New(dir)}
+	return &Service{
+		Runs:          run.NewRegistry(),
+		Recipes:       recipes,
+		Drafts:        recipe.NewDraftBook(),
+		Revisions:     recipe.NewRevisionStore(),
+		RunBindings:   impact.NewBinder(),
+		ImpactReports: impact.NewReportStore(dir),
+		Carrier:       substrate.NewCarrier(),
+		Chamber:       chamber.New("coat-01"),
+		Vacuum:        vacuum.NewController(),
+		Source:        source.NewController(100),
+		Rotation:      rotation.NewController(),
+		Journal:       journal.New(dir),
+	}
 }
 func (s *Service) RecipesList() []*model.Recipe { return s.Recipes.List() }
 func (s *Service) RunsList() []*model.Run       { return s.Runs.List() }
 func (s *Service) Start(ctx context.Context, batch string, recipeID model.ID) (*model.Run, error) {
 	coordinator := &run.Coordinator{Registry: s.Runs, Recipes: s.Recipes, Carrier: s.Carrier, Chamber: s.Chamber, Vacuum: s.Vacuum, Journal: s.Journal}
-	return coordinator.Start(ctx, batch, recipeID)
+	started, err := coordinator.Start(ctx, batch, recipeID)
+	if err != nil {
+		return started, err
+	}
+	// Attribute the run to the newest FROZEN revision when one exists. Runs
+	// started before any freeze stay honestly unbound and are surfaced, never
+	// silently assumed to match a later revision.
+	if started != nil {
+		_, _ = impact.BindIfFrozen(s.Revisions, s.RunBindings, *started, impact.BindingAtStart)
+	}
+	return started, nil
 }
 func (s *Service) UpdateDraft(id model.ID, layer model.Layer) error {
 	if !s.Drafts.UpdateLayer(id, layer) {

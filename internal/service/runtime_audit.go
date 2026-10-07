@@ -59,7 +59,15 @@ func (s *Service) Audit(ctx context.Context, runtime *Runtime) AuditReport {
 				report.Passed = false
 				report.Checks["recipes"] = compileErr.Error()
 			} else {
-				report.Checks["recipes"] = fmt.Sprintf("revision=%d layers=%d", frozen.Number, len(plan.Layers))
+				number := frozen.Number
+				if number == 0 {
+					// Freeze reported a duplicate; cite the newest real frozen revision.
+					existing := runtime.RevisionStore.List(recipes[0].ID)
+					if len(existing) > 0 {
+						number = existing[len(existing)-1].Number
+					}
+				}
+				report.Checks["recipes"] = fmt.Sprintf("revision=%d layers=%d", number, len(plan.Layers))
 			}
 		}
 	}
